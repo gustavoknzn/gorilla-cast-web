@@ -345,6 +345,48 @@ select:focus {
   border: 1px solid var(--border);
 }
 
+/* ---------- video player controls ---------- */
+
+.vbtn {
+  appearance: none;
+  border: 1px solid var(--border);
+  background: rgba(15, 17, 21, 0.78);
+  color: var(--text);
+  width: 38px;
+  height: 38px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition:
+    background 120ms ease,
+    border-color 120ms ease;
+}
+
+.vbtn:hover {
+  background: rgba(29, 34, 44, 0.9);
+  border-color: #333a49;
+}
+
+.fs-btn {
+  position: absolute;
+  right: 12px;
+  bottom: 12px;
+  z-index: 5;
+}
+
+.video-player:fullscreen {
+  border-radius: 0;
+  border: none;
+  background: #000;
+}
+
+.video-player:fullscreen video {
+  width: 100%;
+  height: 100%;
+}
+
 .waiting-screen {
   display: flex;
   flex-direction: column;
