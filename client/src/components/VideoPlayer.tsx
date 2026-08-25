@@ -3,12 +3,25 @@ import { useEffect, useRef, useState } from 'react'
 interface VideoPlayerProps {
   stream: MediaStream | null
   muted?: boolean
-  /** show a sound toggle so viewers can unmute (autoplay always starts muted) */
-  allowUnmute?: boolean
+  /** full control set for viewers: mute, volume slider and fullscreen */
+  controls?: boolean
   className?: string
 }
 
 type FullscreenVideo = HTMLVideoElement & { webkitEnterFullscreen?: () => void }
+
+const VOLUME_KEY = 'gc:volume'
+
+function loadStoredVolume(): number {
+  try {
+    const raw = localStorage.getItem(VOLUME_KEY)
+    const n = raw === null ? NaN : Number(raw)
+    if (Number.isFinite(n)) return Math.min(Math.max(n, 0), 1)
+  } catch {
+    // storage unavailable — fall through to default
+  }
+  return 1
+}
 
 function IconSoundOn() {
   return (
@@ -30,13 +43,15 @@ function IconSoundOff() {
   )
 }
 
-export function VideoPlayer({ stream, muted = true, allowUnmute = false, className }: VideoPlayerProps) {
+export function VideoPlayer({ stream, muted = true, controls = false, className }: VideoPlayerProps) {
   const containerRef = useRef<HTMLDivElement | null>(null)
   const videoRef = useRef<HTMLVideoElement | null>(null)
   const [needsInteraction, setNeedsInteraction] = useState(false)
   const [isFullscreen, setIsFullscreen] = useState(false)
   // initialized from the `muted` prop; toggled only via the sound button
   const [isMuted, setIsMuted] = useState(muted)
+  const [volume, setVolume] = useState(loadStoredVolume)
+  const volumeRef = useRef(volume)
 
   useEffect(() => {
     const video = videoRef.current
@@ -44,6 +59,7 @@ export function VideoPlayer({ stream, muted = true, allowUnmute = false, classNa
     if (video.srcObject !== stream) {
       video.srcObject = stream
     }
+    video.volume = volumeRef.current
     video.play().then(() => setNeedsInteraction(false)).catch(() => setNeedsInteraction(true))
   }, [stream])
 
@@ -52,6 +68,19 @@ export function VideoPlayer({ stream, muted = true, allowUnmute = false, classNa
     document.addEventListener('fullscreenchange', onChange)
     return () => document.removeEventListener('fullscreenchange', onChange)
   }, [])
+
+  const applyVolume = (v: number) => {
+    setVolume(v)
+    volumeRef.current = v
+    if (videoRef.current) {
+      videoRef.current.volume = v
+    }
+    try {
+      localStorage.setItem(VOLUME_KEY, String(v))
+    } catch {
+      // storage unavailable — ignore
+    }
+  }
 
   const toggleFullscreen = () => {
     const container = containerRef.current
@@ -94,18 +123,54 @@ export function VideoPlayer({ stream, muted = true, allowUnmute = false, classNa
           Clique para reproduzir
         </button>
       )}
-      {allowUnmute && stream && (
-        <button
-          type="button"
-          className="vbtn audio-btn"
-          onClick={toggleMuted}
-          aria-label={isMuted ? 'Ativar som' : 'Silenciar'}
-          title={isMuted ? 'Ativar som' : 'Silenciar'}
-        >
-          {isMuted ? <IconSoundOff /> : <IconSoundOn />}
-        </button>
+      {controls && stream && (
+        <div className="video-controls">
+          <button
+            type="button"
+            className="vbtn"
+            onClick={toggleMuted}
+            aria-label={isMuted ? 'Ativar som' : 'Silenciar'}
+            title={isMuted ? 'Ativar som' : 'Silenciar'}
+          >
+            {isMuted ? <IconSoundOff /> : <IconSoundOn />}
+          </button>
+          <input
+            type="range"
+            className="vol-slider"
+            min={0}
+            max={100}
+            step={1}
+            value={Math.round(volume * 100)}
+            onChange={e => applyVolume(Number(e.target.value) / 100)}
+            aria-label="Volume"
+            title={`Volume ${Math.round(volume * 100)}%`}
+          />
+          <button
+            type="button"
+            className="vbtn"
+            onClick={toggleFullscreen}
+            aria-label={isFullscreen ? 'Sair da tela cheia' : 'Tela cheia'}
+            title={isFullscreen ? 'Sair da tela cheia' : 'Tela cheia'}
+          >
+            {isFullscreen ? (
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M8 3v3a2 2 0 0 1-2 2H3" />
+                <path d="M21 8h-3a2 2 0 0 1-2-2V3" />
+                <path d="M3 16h3a2 2 0 0 1 2 2v3" />
+                <path d="M16 21v-3a2 2 0 0 1 2-2h3" />
+              </svg>
+            ) : (
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M8 3H5a2 2 0 0 0-2 2v3" />
+                <path d="M21 8V5a2 2 0 0 0-2-2h-3" />
+                <path d="M3 16v3a2 2 0 0 0 2 2h3" />
+                <path d="M16 21h3a2 2 0 0 0 2-2v-3" />
+              </svg>
+            )}
+          </button>
+        </div>
       )}
-      {stream && (
+      {!controls && stream && (
         <button type="button" className="vbtn fs-btn" onClick={toggleFullscreen} aria-label={isFullscreen ? 'Sair da tela cheia' : 'Tela cheia'} title={isFullscreen ? 'Sair da tela cheia' : 'Tela cheia'}>
           {isFullscreen ? (
             <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">

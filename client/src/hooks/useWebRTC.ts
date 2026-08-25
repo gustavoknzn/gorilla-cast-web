@@ -21,6 +21,8 @@ export function useBroadcaster(signaling: {
   const peersRef = useRef(new Map<string, RTCPeerConnection>())
   const pendingViewersRef = useRef<string[]>([])
   const settingsRef = useRef<RoomSettings | null>(null)
+  const endedHandlerRef = useRef<(() => void) | null>(null)
+  const endedSentRef = useRef(false)
   const signalingRef = useRef(signaling)
   useEffect(() => {
     signalingRef.current = signaling
@@ -76,6 +78,32 @@ export function useBroadcaster(signaling: {
     })
   }, [closePeer])
 
+  const stopSharing = useCallback(() => {
+    // detach listeners first so our own teardown doesn't count as source loss
+    const handler = endedHandlerRef.current
+    if (handler && streamRef.current) {
+      for (const track of streamRef.current.getTracks()) {
+        track.removeEventListener('ended', handler)
+      }
+    }
+    endedHandlerRef.current = null
+    streamRef.current?.getTracks().forEach(t => t.stop())
+    streamRef.current = null
+    setLocalStream(null)
+    setLive(false)
+    for (const socketId of [...peersRef.current.keys()]) closePeer(socketId)
+  }, [closePeer])
+
+  /** capture source disappeared (game/app closed or browser-native stop) */
+  const handleSourceEnded = useCallback(() => {
+    if (endedSentRef.current) return
+    endedSentRef.current = true
+    // closing the source ends the broadcast for everyone: server tears down
+    // the room and viewers land on the "transmissão encerrada" screen
+    signalingRef.current.send({ type: 'end-stream' })
+    stopSharing()
+  }, [stopSharing])
+
   const startSharing = useCallback(async () => {
     if (!navigator.mediaDevices?.getDisplayMedia) throw new Error('Este navegador não suporta compartilhamento de tela')
     const constraints = settingsRef.current
@@ -88,27 +116,29 @@ export function useBroadcaster(signaling: {
           }
         : true,
       audio: constraints?.audio ?? true,
-    })
+      // chromium-only hints (not in the TS DOM lib): show the system-audio
+      // checkbox when picking a whole screen and hide this page from the list.
+      // The dialog decides the actual audio source (tab/window = that source
+      // only, whole screen = all system audio on Windows).
+      systemAudio: 'include',
+      selfBrowserSurface: 'exclude',
+    } as DisplayMediaStreamOptions)
     streamRef.current = stream
     setLocalStream(stream)
     setLive(true)
+    endedSentRef.current = false
 
-    stream.getVideoTracks()[0]?.addEventListener('ended', () => stopSharing())
+    const onEnded = () => handleSourceEnded()
+    endedHandlerRef.current = onEnded
+    for (const track of stream.getTracks()) {
+      track.addEventListener('ended', onEnded)
+    }
 
     // offer to everyone already waiting
     for (const socketId of [...pendingViewersRef.current]) {
       void createOfferTo(socketId)
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [createOfferTo])
-
-  const stopSharing = useCallback(() => {
-    streamRef.current?.getTracks().forEach(t => t.stop())
-    streamRef.current = null
-    setLocalStream(null)
-    setLive(false)
-    for (const socketId of [...peersRef.current.keys()]) closePeer(socketId)
-  }, [closePeer])
+  }, [createOfferTo, handleSourceEnded])
 
   /** Apply new resolution/fps to the live track; falls back to re-acquiring the stream. */
   const applyConstraints = useCallback(

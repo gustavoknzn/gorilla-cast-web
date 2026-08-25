@@ -347,38 +347,73 @@ select:focus {
 
 /* ---------- video player controls ---------- */
 
+.video-controls {
+  position: absolute;
+  right: 12px;
+  bottom: 12px;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(15, 17, 21, 0.6);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 6px 10px;
+}
+
 .vbtn {
   appearance: none;
-  border: 1px solid var(--border);
-  background: rgba(15, 17, 21, 0.78);
+  border: none;
+  background: none;
   color: var(--text);
-  width: 38px;
-  height: 38px;
+  width: 32px;
+  height: 32px;
   border-radius: 8px;
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  transition:
-    background 120ms ease,
-    border-color 120ms ease;
+  transition: background 120ms ease;
 }
 
 .vbtn:hover {
-  background: rgba(29, 34, 44, 0.9);
-  border-color: #333a49;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.vol-slider {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 110px;
+  height: 4px;
+  border: none;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.25);
+  outline: none;
+  cursor: pointer;
+  padding: 0;
+}
+
+.vol-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--accent);
+  border: none;
+}
+
+.vol-slider::-moz-range-thumb {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--accent);
+  border: none;
 }
 
 .fs-btn {
   position: absolute;
   right: 12px;
-  bottom: 12px;
-  z-index: 5;
-}
-
-.audio-btn {
-  position: absolute;
-  right: 58px;
   bottom: 12px;
   z-index: 5;
 }
