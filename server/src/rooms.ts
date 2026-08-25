@@ -121,7 +121,8 @@ export class RoomManager {
         role === 'owner'
           ? verifyToken<OwnerTokenPayload>(token, this.secret)
           : verifyToken<ViewerTokenPayload>(token, this.secret)
-      if (payload && payload.role === role && this.rooms.has(payload.roomId)) {
+      const room = payload ? this.rooms.get(payload.roomId) : undefined
+      if (payload && payload.role === role && room && room.state !== 'ended') {
         return { valid: true, role, roomId: payload.roomId }
       }
     }
