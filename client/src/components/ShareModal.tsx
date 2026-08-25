@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { QRCodeSVG } from 'qrcode.react'
 import { mintViewerToken } from '../utils/api'
 
@@ -12,6 +12,24 @@ export function ShareModal({ roomId, ownerToken, onClose }: ShareModalProps) {
   const [token, setToken] = useState<string | null>(null)
   const [copied, setCopied] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [generating, setGenerating] = useState(true)
+
+  useEffect(() => {
+    let cancelled = false
+    mintViewerToken(roomId, ownerToken, 1)
+      .then(([newToken]) => {
+        if (!cancelled) setToken(newToken)
+      })
+      .catch(e => {
+        if (!cancelled) setError(e instanceof Error ? e.message : 'erro ao gerar link')
+      })
+      .finally(() => {
+        if (!cancelled) setGenerating(false)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [roomId, ownerToken])
 
   const activeToken = token ?? ''
   const inviteUrl = `${window.location.origin}/watch/${roomId}?token=${encodeURIComponent(activeToken)}`
@@ -29,11 +47,14 @@ export function ShareModal({ roomId, ownerToken, onClose }: ShareModalProps) {
 
   const regenerate = async () => {
     setError(null)
+    setGenerating(true)
     try {
       const [newToken] = await mintViewerToken(roomId, ownerToken, 1)
       setToken(newToken)
     } catch (e) {
       setError(e instanceof Error ? e.message : 'erro ao gerar link')
+    } finally {
+      setGenerating(false)
     }
   }
 
@@ -47,7 +68,9 @@ export function ShareModal({ roomId, ownerToken, onClose }: ShareModalProps) {
           </button>
         </div>
 
-        {needsNewToken ? (
+        {generating ? (
+          <p className="muted">Gerando link de convite…</p>
+        ) : needsNewToken ? (
           <p className="muted">
             Cada link funciona para um único espectador. Gere um novo link de convite.
           </p>
@@ -70,7 +93,7 @@ export function ShareModal({ roomId, ownerToken, onClose }: ShareModalProps) {
         {error && <p className="error-text">{error}</p>}
 
         <div className="modal-actions">
-          <button type="button" className="btn" onClick={regenerate}>
+          <button type="button" className="btn" onClick={regenerate} disabled={generating}>
             Gerar novo link
           </button>
         </div>

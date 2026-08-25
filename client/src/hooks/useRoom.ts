@@ -27,7 +27,7 @@ export function useRoom({ roomId, role, token }: UseRoomParams) {
 
   useEffect(() => {
     const serverUrl: string | undefined = import.meta.env.VITE_SERVER_URL || undefined
-    const socket: Socket = io(serverUrl, { path: WS_PATH })
+    const socket: Socket = io(serverUrl, { path: WS_PATH, transports: ['websocket'] })
     socketRef.current = socket
 
     socket.on('connect', () => {
