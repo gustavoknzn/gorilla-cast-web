@@ -15,14 +15,22 @@ export type ClientToServer =
   | { type: 'settings-update'; settings: unknown }
   | { type: 'end-stream' }
 
+export interface ViewerRef {
+  socketId: string
+  viewerId: string
+}
+
 export type ServerToClient =
-  | { type: 'joined'; role: 'broadcaster' | 'viewer'; viewerId?: string; state: string; settings?: unknown }
+  | { type: 'joined'; role: 'broadcaster' | 'viewer'; viewerId?: string; state: string; settings?: unknown; viewers?: ViewerRef[] }
   | { type: 'join-error'; reason: string }
-  | { type: 'viewer-joined'; viewerId: string }
+  | { type: 'viewer-joined'; viewerId: string; socketId: string }
   | { type: 'viewer-left'; viewerId: string }
   | { type: 'viewer-count'; count: number }
   | { type: 'settings-update'; settings: unknown }
   | { type: 'room-ended' }
+  | { type: 'offer'; from: string; sdp: unknown }
+  | { type: 'answer'; from: string; sdp: unknown }
+  | { type: 'candidate'; from: string; candidate: unknown }
 
 interface SocketMeta {
   roomId?: string
@@ -31,9 +39,36 @@ interface SocketMeta {
 }
 
 const meta = new Map<string, SocketMeta>()
+const roomSockets = new Map<string, Map<string, SocketMeta>>()
 
 function roomChannel(roomId: string): string {
   return `room:${roomId}`
+}
+
+function joinRegistry(roomId: string, socketId: string, m: SocketMeta): void {
+  let set = roomSockets.get(roomId)
+  if (!set) {
+    set = new Map()
+    roomSockets.set(roomId, set)
+  }
+  set.set(socketId, m)
+}
+
+function leaveRegistry(roomId: string, socketId: string): void {
+  const set = roomSockets.get(roomId)
+  if (!set) return
+  set.delete(socketId)
+  if (set.size === 0) roomSockets.delete(roomId)
+}
+
+function listViewers(roomId: string): ViewerRef[] {
+  const set = roomSockets.get(roomId)
+  if (!set) return []
+  const out: ViewerRef[] = []
+  for (const [socketId, m] of set) {
+    if (m.role === 'viewer' && m.viewerId) out.push({ socketId, viewerId: m.viewerId })
+  }
+  return out
 }
 
 function broadcastViewerCount(io: Server, rooms: RoomManager, roomId: string): void {
@@ -64,12 +99,14 @@ export function registerSignaling(io: Server, rooms: RoomManager): void {
             m.roomId = room.id
             m.role = 'broadcaster'
             meta.set(socket.id, m)
+            joinRegistry(room.id, socket.id, m)
             socket.join(roomChannel(room.id))
             socket.emit('message', {
               type: 'joined',
               role: 'broadcaster',
               state: room.state,
               settings: room.settings,
+              viewers: listViewers(room.id),
             } satisfies ServerToClient)
           } else {
             const result = rooms.consumeViewerToken(msg.roomId, msg.token)
@@ -82,6 +119,7 @@ export function registerSignaling(io: Server, rooms: RoomManager): void {
             m.role = 'viewer'
             m.viewerId = result.viewerId
             meta.set(socket.id, m)
+            joinRegistry(msg.roomId, socket.id, m)
             socket.join(roomChannel(msg.roomId))
             socket.emit('message', {
               type: 'joined',
@@ -92,7 +130,11 @@ export function registerSignaling(io: Server, rooms: RoomManager): void {
 
             const broadcaster = rooms.getBroadcaster(msg.roomId)
             if (broadcaster) {
-              io.to(broadcaster).emit('message', { type: 'viewer-joined', viewerId: result.viewerId } satisfies ServerToClient)
+              io.to(broadcaster).emit('message', {
+                type: 'viewer-joined',
+                viewerId: result.viewerId,
+                socketId: socket.id,
+              } satisfies ServerToClient)
             }
             broadcastViewerCount(io, rooms, msg.roomId)
           }
@@ -104,11 +146,11 @@ export function registerSignaling(io: Server, rooms: RoomManager): void {
         case 'candidate': {
           // relay only inside same room
           if (!m.roomId) return
-          io.to(msg.to).emit('message', {
-            type: msg.type,
-            from: socket.id,
-            ...(msg.type === 'candidate' ? { candidate: msg.candidate } : { sdp: msg.sdp }),
-          })
+          const relay: ServerToClient =
+            msg.type === 'candidate'
+              ? { type: 'candidate', from: socket.id, candidate: msg.candidate }
+              : { type: msg.type, from: socket.id, sdp: msg.sdp }
+          io.to(msg.to).emit('message', relay)
           break
         }
 
@@ -134,6 +176,7 @@ export function registerSignaling(io: Server, rooms: RoomManager): void {
       if (!m?.roomId) return
 
       if (m.role === 'viewer' && m.viewerId) {
+        leaveRegistry(m.roomId, socket.id)
         rooms.removeConnectedViewer(m.roomId, m.viewerId)
         const broadcaster = rooms.getBroadcaster(m.roomId)
         if (broadcaster) {
@@ -155,4 +198,5 @@ export function endRoom(io: Server, rooms: RoomManager, roomId: string): void {
   if (room) {
     room.connectedViewerIds.clear()
   }
+  roomSockets.delete(roomId)
 }
