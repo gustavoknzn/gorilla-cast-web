@@ -80,7 +80,10 @@ export function BroadcasterPanel({
           />
           Capturar áudio do sistema
         </label>
-        <p className="hint">Marque "compartilhar áudio" na janela de seleção do navegador para que o som seja capturado.</p>
+        <p className="hint">
+          O áudio segue o que você marcar na janela de compartilhamento do navegador: aba ou janela
+          captura só o som dela; tela inteira captura o áudio do sistema todo.
+        </p>
 
         <div className="controls-buttons">
           {!localStream ? (

@@ -116,7 +116,13 @@ export function useBroadcaster(signaling: {
           }
         : true,
       audio: constraints?.audio ?? true,
-    })
+      // chromium-only hints (not in the TS DOM lib): show the system-audio
+      // checkbox when picking a whole screen and hide this page from the list.
+      // The dialog decides the actual audio source (tab/window = that source
+      // only, whole screen = all system audio on Windows).
+      systemAudio: 'include',
+      selfBrowserSurface: 'exclude',
+    } as DisplayMediaStreamOptions)
     streamRef.current = stream
     setLocalStream(stream)
     setLive(true)
