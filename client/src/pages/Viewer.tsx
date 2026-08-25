@@ -48,7 +48,7 @@ export function Viewer() {
       {room.status === 'connecting' ? (
         <p className="muted">Entrando na sala…</p>
       ) : viewer.remoteStream ? (
-        <VideoPlayer stream={viewer.remoteStream} className="viewer-video" />
+        <VideoPlayer stream={viewer.remoteStream} className="viewer-video" allowUnmute />
       ) : (
         <div className="waiting-screen">
           <div className="spinner" />

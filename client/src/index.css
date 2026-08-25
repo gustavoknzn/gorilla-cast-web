@@ -376,6 +376,19 @@ select:focus {
   z-index: 5;
 }
 
+.audio-btn {
+  position: absolute;
+  right: 58px;
+  bottom: 12px;
+  z-index: 5;
+}
+
+.hint {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  margin: -8px 0 0;
+}
+
 .video-player:fullscreen {
   border-radius: 0;
   border: none;
