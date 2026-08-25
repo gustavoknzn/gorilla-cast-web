@@ -151,7 +151,16 @@ export function useBroadcaster(signaling: {
     const unsubscribe = signaling.subscribe((msg: ServerMessage) => {
       switch (msg.type) {
         case 'joined':
-          if (msg.viewers) pendingViewersRef.current = msg.viewers.map(v => v.socketId)
+          if (msg.viewers) {
+            pendingViewersRef.current = msg.viewers.map(v => v.socketId)
+            // after a broadcaster reconnect, offer to viewers that joined
+            // during the disconnect window and have no peer connection yet
+            if (streamRef.current) {
+              for (const socketId of pendingViewersRef.current) {
+                if (!peersRef.current.has(socketId)) void createOfferTo(socketId)
+              }
+            }
+          }
           break
         case 'viewer-joined': {
           if (!peersRef.current.has(msg.socketId)) {

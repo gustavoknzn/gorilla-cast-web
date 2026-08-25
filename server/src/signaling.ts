@@ -41,6 +41,12 @@ interface SocketMeta {
 const meta = new Map<string, SocketMeta>()
 const roomSockets = new Map<string, Map<string, SocketMeta>>()
 
+// How long to wait after an abrupt broadcaster disconnect before ending the
+// room. Gives the broadcaster time to reconnect (page reload, network blip)
+// without instantly invalidating every viewer link.
+const BROADCASTER_GRACE_MS = Number(process.env.BROADCASTER_GRACE_MS ?? 30_000)
+const pendingEndTimers = new Map<string, ReturnType<typeof setTimeout>>()
+
 function roomChannel(roomId: string): string {
   return `room:${roomId}`
 }
@@ -96,6 +102,12 @@ export function registerSignaling(io: Server, rooms: RoomManager): void {
               return
             }
             rooms.setBroadcaster(room.id, socket.id)
+            // broadcaster reconnected within the grace window → keep the room alive
+            const pendingEnd = pendingEndTimers.get(room.id)
+            if (pendingEnd) {
+              clearTimeout(pendingEnd)
+              pendingEndTimers.delete(room.id)
+            }
             m.roomId = room.id
             m.role = 'broadcaster'
             meta.set(socket.id, m)
@@ -188,14 +200,33 @@ export function registerSignaling(io: Server, rooms: RoomManager): void {
         }
         broadcastViewerCount(io, rooms, m.roomId)
       } else if (m.role === 'broadcaster') {
-        // broadcaster left abruptly → close the room
-        endRoom(io, rooms, m.roomId)
+        // broadcaster left abruptly → schedule room teardown after a grace
+        // window so transient reconnects don't invalidate viewer links
+        if (BROADCASTER_GRACE_MS > 0) {
+          const existing = pendingEndTimers.get(m.roomId)
+          if (existing) clearTimeout(existing)
+          const roomId: string = m.roomId
+          pendingEndTimers.set(
+            roomId,
+            setTimeout(() => {
+              pendingEndTimers.delete(roomId)
+              endRoom(io, rooms, roomId)
+            }, BROADCASTER_GRACE_MS),
+          )
+        } else {
+          endRoom(io, rooms, m.roomId)
+        }
       }
     })
   })
 }
 
 export function endRoom(io: Server, rooms: RoomManager, roomId: string): void {
+  const pendingEnd = pendingEndTimers.get(roomId)
+  if (pendingEnd) {
+    clearTimeout(pendingEnd)
+    pendingEndTimers.delete(roomId)
+  }
   if (!rooms.end(roomId)) return
   io.to(roomChannel(roomId)).emit('message', { type: 'room-ended' } satisfies ServerToClient)
   const room = rooms.get(roomId)
