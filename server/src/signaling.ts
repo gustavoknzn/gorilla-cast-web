@@ -24,7 +24,7 @@ export type ServerToClient =
   | { type: 'joined'; role: 'broadcaster' | 'viewer'; viewerId?: string; state: string; settings?: unknown; viewers?: ViewerRef[] }
   | { type: 'join-error'; reason: string }
   | { type: 'viewer-joined'; viewerId: string; socketId: string }
-  | { type: 'viewer-left'; viewerId: string }
+  | { type: 'viewer-left'; viewerId: string; socketId: string }
   | { type: 'viewer-count'; count: number }
   | { type: 'settings-update'; settings: unknown }
   | { type: 'room-ended' }
@@ -180,7 +180,11 @@ export function registerSignaling(io: Server, rooms: RoomManager): void {
         rooms.removeConnectedViewer(m.roomId, m.viewerId)
         const broadcaster = rooms.getBroadcaster(m.roomId)
         if (broadcaster) {
-          io.to(broadcaster).emit('message', { type: 'viewer-left', viewerId: m.viewerId } satisfies ServerToClient)
+          io.to(broadcaster).emit('message', {
+            type: 'viewer-left',
+            viewerId: m.viewerId,
+            socketId: socket.id,
+          } satisfies ServerToClient)
         }
         broadcastViewerCount(io, rooms, m.roomId)
       } else if (m.role === 'broadcaster') {
