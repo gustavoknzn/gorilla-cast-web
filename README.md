@@ -46,3 +46,12 @@ fly deploy
 ```
 
 Ver `fly.toml` e `Dockerfile` na raiz.
+
+### Custos
+
+Specs: `shared-cpu-1x` / 256MB / sempre ligada (`min_machines_running = 1`).
+
+- **Conta Hobby legada (pré-out/2024)**: dentro da free allowance de até 3 VMs `shared-cpu-1x` 256MB → **$0/mês**. A máquina nunca para (`auto_stop_machines = false`), o que também evita a cobrança de rootfs aplicada a máquinas paradas ($0,15/GB por 30 dias).
+- **Contas novas (Pay As You Go)**: sem free tier — a mesma spec custa ~$2,43/mês em `gru`. Para reduzir, dá para usar `min_machines_running = 0` + `auto_stop_machines = "stop"` (~$0, mas com cold start e perda das salas em memória quando idle).
+
+O egress é mínimo: o vídeo WebRTC trafega P2P entre navegadores; o servidor só faz signaling e serve o SPA.
