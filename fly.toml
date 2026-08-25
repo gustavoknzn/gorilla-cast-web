@@ -1,6 +1,6 @@
 # Synced with the deployed app config (fly config display on 2026-08-25)
 app = "gorilla-cast-web"
-primary_region = "ams"
+primary_region = "gru"
 
 [build]
   dockerfile = "Dockerfile"
