@@ -5,6 +5,7 @@ export interface JoinMessage {
   roomId: string
   role: 'broadcaster' | 'viewer'
   token: string
+  name?: string
 }
 
 export type ClientToServer =
@@ -14,16 +15,18 @@ export type ClientToServer =
   | { type: 'candidate'; to: string; candidate: unknown }
   | { type: 'settings-update'; settings: unknown }
   | { type: 'end-stream' }
+  | { type: 'kick-viewer'; viewerId: string }
 
 export interface ViewerRef {
   socketId: string
   viewerId: string
+  name?: string
 }
 
 export type ServerToClient =
   | { type: 'joined'; role: 'broadcaster' | 'viewer'; viewerId?: string; state: string; settings?: unknown; viewers?: ViewerRef[] }
   | { type: 'join-error'; reason: string }
-  | { type: 'viewer-joined'; viewerId: string; socketId: string }
+  | { type: 'viewer-joined'; viewerId: string; socketId: string; name?: string }
   | { type: 'viewer-left'; viewerId: string; socketId: string }
   | { type: 'viewer-count'; count: number }
   | { type: 'settings-update'; settings: unknown }
@@ -36,6 +39,7 @@ interface SocketMeta {
   roomId?: string
   role?: 'broadcaster' | 'viewer'
   viewerId?: string
+  name?: string
 }
 
 const meta = new Map<string, SocketMeta>()
@@ -72,7 +76,7 @@ function listViewers(roomId: string): ViewerRef[] {
   if (!set) return []
   const out: ViewerRef[] = []
   for (const [socketId, m] of set) {
-    if (m.role === 'viewer' && m.viewerId) out.push({ socketId, viewerId: m.viewerId })
+    if (m.role === 'viewer' && m.viewerId) out.push({ socketId, viewerId: m.viewerId, name: m.name })
   }
   return out
 }
@@ -130,6 +134,7 @@ export function registerSignaling(io: Server, rooms: RoomManager): void {
             m.roomId = msg.roomId
             m.role = 'viewer'
             m.viewerId = result.viewerId
+            m.name = msg.name?.trim().slice(0, 30) || undefined
             meta.set(socket.id, m)
             joinRegistry(msg.roomId, socket.id, m)
             socket.join(roomChannel(msg.roomId))
@@ -146,6 +151,7 @@ export function registerSignaling(io: Server, rooms: RoomManager): void {
                 type: 'viewer-joined',
                 viewerId: result.viewerId,
                 socketId: socket.id,
+                name: m.name,
               } satisfies ServerToClient)
             }
             broadcastViewerCount(io, rooms, msg.roomId)
@@ -177,6 +183,22 @@ export function registerSignaling(io: Server, rooms: RoomManager): void {
         case 'end-stream': {
           if (!m.roomId || m.role !== 'broadcaster') return
           endRoom(io, rooms, m.roomId)
+          break
+        }
+
+        case 'kick-viewer': {
+          if (!m.roomId || m.role !== 'broadcaster') return
+          const set = roomSockets.get(m.roomId)
+          if (!set) return
+          for (const [socketId, meta] of set) {
+            if (meta.role === 'viewer' && meta.viewerId === msg.viewerId) {
+              const targetSocket = io.sockets.sockets.get(socketId)
+              if (targetSocket) {
+                targetSocket.disconnect(true)
+              }
+              break
+            }
+          }
           break
         }
       }

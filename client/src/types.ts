@@ -6,6 +6,7 @@ export interface RoomSettings {
 export interface ViewerRef {
   socketId: string
   viewerId: string
+  name?: string
 }
 
 export interface CreateRoomResponse {
@@ -25,7 +26,7 @@ export type ServerMessage =
       viewers?: ViewerRef[]
     }
   | { type: 'join-error'; reason: string }
-  | { type: 'viewer-joined'; viewerId: string; socketId: string }
+  | { type: 'viewer-joined'; viewerId: string; socketId: string; name?: string }
   | { type: 'viewer-left'; viewerId: string; socketId: string }
   | { type: 'viewer-count'; count: number }
   | { type: 'settings-update'; settings: RoomSettings }
@@ -35,12 +36,13 @@ export type ServerMessage =
   | { type: 'candidate'; from: string; candidate: RTCIceCandidateInit }
 
 export type ClientMessage =
-  | { type: 'join'; roomId: string; role: 'broadcaster' | 'viewer'; token: string }
+  | { type: 'join'; roomId: string; role: 'broadcaster' | 'viewer'; token: string; name?: string }
   | { type: 'offer'; to: string; sdp: RTCSessionDescriptionInit }
   | { type: 'answer'; to: string; sdp: RTCSessionDescriptionInit }
   | { type: 'candidate'; to: string; candidate: RTCIceCandidateInit }
   | { type: 'settings-update'; settings: RoomSettings }
   | { type: 'end-stream' }
+  | { type: 'kick-viewer'; viewerId: string }
 
 export const RESOLUTIONS = [
   { label: '1080p', width: 1920, height: 1080 },
