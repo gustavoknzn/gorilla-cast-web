@@ -24,7 +24,7 @@ export interface ViewerRef {
 }
 
 export type ServerToClient =
-  | { type: 'joined'; role: 'broadcaster' | 'viewer'; viewerId?: string; state: string; settings?: unknown; viewers?: ViewerRef[] }
+  | { type: 'joined'; role: 'broadcaster' | 'viewer'; viewerId?: string; state: string; settings?: unknown; viewers?: ViewerRef[]; roomName?: string }
   | { type: 'join-error'; reason: string }
   | { type: 'viewer-joined'; viewerId: string; socketId: string; name?: string }
   | { type: 'viewer-left'; viewerId: string; socketId: string }
@@ -123,6 +123,7 @@ export function registerSignaling(io: Server, rooms: RoomManager): void {
               state: room.state,
               settings: room.settings,
               viewers: listViewers(room.id),
+              roomName: room.roomName,
             } satisfies ServerToClient)
           } else {
             const result = rooms.consumeViewerToken(msg.roomId, msg.token)
@@ -138,11 +139,13 @@ export function registerSignaling(io: Server, rooms: RoomManager): void {
             meta.set(socket.id, m)
             joinRegistry(msg.roomId, socket.id, m)
             socket.join(roomChannel(msg.roomId))
+            const room = rooms.get(msg.roomId)
             socket.emit('message', {
               type: 'joined',
               role: 'viewer',
               viewerId: result.viewerId,
-              state: rooms.get(msg.roomId)?.state ?? 'waiting',
+              state: room?.state ?? 'waiting',
+              roomName: room?.roomName,
             } satisfies ServerToClient)
 
             const broadcaster = rooms.getBroadcaster(msg.roomId)

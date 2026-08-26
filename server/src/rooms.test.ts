@@ -165,11 +165,14 @@ describe('RoomManager', () => {
       'createdAt',
       'expiresAt',
       'id',
+      'roomName',
       'settings',
       'state',
       'viewers',
     ])
     assert.equal(status.viewers, 1)
     assert.equal(status.state, 'waiting')
+    assert.equal(typeof status.roomName, 'string')
+    assert.ok(status.roomName.length > 0)
   })
 })

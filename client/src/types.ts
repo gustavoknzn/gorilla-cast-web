@@ -24,6 +24,7 @@ export type ServerMessage =
       state: string
       settings?: RoomSettings
       viewers?: ViewerRef[]
+      roomName?: string
     }
   | { type: 'join-error'; reason: string }
   | { type: 'viewer-joined'; viewerId: string; socketId: string; name?: string }

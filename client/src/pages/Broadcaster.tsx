@@ -78,7 +78,11 @@ export function Broadcaster() {
         <Link to="/" className="logo logo-sm">
           Gorilla Cast
         </Link>
-        <span className="muted small">Sala {roomId.slice(0, 8)}</span>
+        {room.roomName ? (
+          <span className="muted small">Sala {room.roomName} ({roomId.slice(0, 8)})</span>
+        ) : (
+          <span className="muted small">Sala {roomId.slice(0, 8)}</span>
+        )}
       </header>
 
       {room.status === 'connecting' ? (

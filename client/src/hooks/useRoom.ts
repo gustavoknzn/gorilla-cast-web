@@ -9,11 +9,12 @@ interface UseRoomParams {
   role: 'broadcaster' | 'viewer'
   token: string
   name?: string
+  enabled?: boolean
 }
 
 const WS_PATH = '/ws'
 
-export function useRoom({ roomId, role, token, name }: UseRoomParams) {
+export function useRoom({ roomId, role, token, name, enabled = true }: UseRoomParams) {
   const [status, setStatus] = useState<RoomStatus>('connecting')
   const [error, setError] = useState<string | null>(null)
   const [roomState, setRoomState] = useState<string | null>(null)
@@ -22,12 +23,27 @@ export function useRoom({ roomId, role, token, name }: UseRoomParams) {
   const [ended, setEnded] = useState(false)
   const [initialViewers, setInitialViewers] = useState<ViewerRef[]>([])
   const [viewers, setViewers] = useState<ViewerRef[]>([])
+  const [roomName, setRoomName] = useState<string | null>(null)
 
   const socketRef = useRef<Socket | null>(null)
   const listenersRef = useRef(new Set<(msg: ServerMessage) => void>())
   const joinedRef = useRef(false)
 
   useEffect(() => {
+    if (!enabled) {
+      socketRef.current?.close()
+      socketRef.current = null
+      joinedRef.current = false
+      setStatus('connecting')
+      setError(null)
+      setRoomState(null)
+      setSettings(null)
+      setViewers([])
+      setInitialViewers([])
+      setRoomName(null)
+      return
+    }
+
     const serverUrl: string | undefined = import.meta.env.VITE_SERVER_URL || undefined
     const socket: Socket = io(serverUrl, { path: WS_PATH, transports: ['websocket'] })
     socketRef.current = socket
@@ -54,6 +70,9 @@ export function useRoom({ roomId, role, token, name }: UseRoomParams) {
           if (msg.viewers) {
             setInitialViewers(msg.viewers)
             setViewers(msg.viewers)
+          }
+          if ('roomName' in msg && typeof msg.roomName === 'string') {
+            setRoomName(msg.roomName)
           }
           break
         case 'join-error':
@@ -84,7 +103,7 @@ export function useRoom({ roomId, role, token, name }: UseRoomParams) {
       socketRef.current = null
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [roomId, role, token, name])
+  }, [roomId, role, token, name, enabled])
 
   const subscribe = (fn: (msg: ServerMessage) => void) => {
     listenersRef.current.add(fn)
@@ -97,5 +116,5 @@ export function useRoom({ roomId, role, token, name }: UseRoomParams) {
     socketRef.current?.emit('message', msg)
   }
 
-  return { status, error, roomState, settings, viewerCount, ended, initialViewers, viewers, subscribe, send }
+  return { status, error, roomState, settings, viewerCount, ended, initialViewers, viewers, roomName, subscribe, send }
 }
