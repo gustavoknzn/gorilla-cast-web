@@ -100,7 +100,7 @@ export function BroadcasterPanel({
               {viewers.map(v => (
                 <li key={v.socketId} className="viewer-item">
                   <span className="viewer-name">
-                    {v.name ? `${v.name} (${formatViewerId(v.viewerId)})` : formatViewerId(v.viewerId)}
+                    {v.name ? v.name : formatViewerId(v.viewerId)}
                   </span>
                   <button
                     type="button"
