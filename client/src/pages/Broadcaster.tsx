@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Link, useParams, useSearchParams } from 'react-router-dom'
+import { VideoPlayer } from '../components/VideoPlayer'
 import { BroadcasterPanel } from '../components/BroadcasterPanel'
-import { ShareModal } from '../components/ShareModal'
+import { ViewerList } from '../components/ViewerList'
 import { useMediaConstraints } from '../hooks/useMediaConstraints'
 import { useRoom } from '../hooks/useRoom'
 import { useBroadcaster } from '../hooks/useWebRTC'
@@ -88,24 +89,38 @@ export function Broadcaster() {
       {room.status === 'connecting' ? (
         <p className="muted">Conectando ao servidor…</p>
       ) : (
-        <BroadcasterPanel
-          settings={constraints.settings}
-          localStream={broadcaster.localStream}
-          live={broadcaster.live}
-          viewerCount={room.viewers.length}
-          viewers={room.viewers}
-          roomState={room.roomState}
-          onSettingsChange={handleSettingsChange}
-          onStart={() => void broadcaster.startSharing().catch(err => alert(err.message))}
-          onStop={broadcaster.stopSharing}
-          onEnd={() => room.send({ type: 'end-stream' })}
-          onShare={() => setShareOpen(true)}
-          onKickViewer={handleKickViewer}
-        />
+        <div className="broadcaster-layout">
+          <BroadcasterPanel
+            settings={constraints.settings}
+            localStream={broadcaster.localStream}
+            roomState={room.roomState}
+            onSettingsChange={handleSettingsChange}
+            onStart={() => void broadcaster.startSharing().catch(err => alert(err.message))}
+            onStop={broadcaster.stopSharing}
+            onEnd={() => room.send({ type: 'end-stream' })}
+            roomId={roomId}
+            ownerToken={token}
+          />
+          <div className="preview-area">
+            <VideoPlayer stream={broadcaster.localStream} muted />
+            <div className="preview-badges">
+              <span className={`badge ${broadcaster.live ? 'badge-live' : 'badge-waiting'}`}>
+                {broadcaster.live ? '● AO VIVO' : 'aguardando'}
+              </span>
+              {broadcaster.live && <span className="badge">{room.viewers.length} {room.viewers.length === 1 ? 'espectador' : 'espectadores'}</span>}
+            </div>
+          </div>
+          <ViewerList viewers={room.viewers} onKickViewer={handleKickViewer} />
+        </div>
       )}
 
       {shareOpen && (
-        <ShareModal roomId={roomId} ownerToken={token} onClose={() => setShareOpen(false)} />
+        <div className="modal-backdrop" onClick={() => setShareOpen(false)}>
+          <div className="modal" onClick={e => e.stopPropagation()}>
+            <p className="muted">ShareModal deprecated - using inline SharePanel instead</p>
+            <button type="button" className="btn" onClick={() => setShareOpen(false)}>Fechar</button>
+          </div>
+        </div>
       )}
     </main>
   )
