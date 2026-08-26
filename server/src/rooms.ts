@@ -45,7 +45,8 @@ export class RoomManager {
 
   constructor(secret: string) {
     this.secret = secret
-    setInterval(() => this.cleanup(), 60_000)
+    // unref so the cleanup timer alone never keeps the process alive
+    setInterval(() => this.cleanup(), 60_000).unref()
   }
 
   create(settings?: Partial<RoomSettings>): CreateRoomResult {
