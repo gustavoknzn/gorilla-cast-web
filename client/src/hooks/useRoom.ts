@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { io, type Socket } from 'socket.io-client'
-import type { ClientMessage, RoomSettings, ServerMessage } from '../types'
+import type { ClientMessage, RoomSettings, ServerMessage, ViewerRef } from '../types'
 
 export type RoomStatus = 'connecting' | 'connected' | 'error'
 
@@ -8,18 +8,20 @@ interface UseRoomParams {
   roomId: string
   role: 'broadcaster' | 'viewer'
   token: string
+  name?: string
 }
 
 const WS_PATH = '/ws'
 
-export function useRoom({ roomId, role, token }: UseRoomParams) {
+export function useRoom({ roomId, role, token, name }: UseRoomParams) {
   const [status, setStatus] = useState<RoomStatus>('connecting')
   const [error, setError] = useState<string | null>(null)
   const [roomState, setRoomState] = useState<string | null>(null)
   const [settings, setSettings] = useState<RoomSettings | null>(null)
   const [viewerCount, setViewerCount] = useState(0)
   const [ended, setEnded] = useState(false)
-  const [initialViewers, setInitialViewers] = useState<{ socketId: string; viewerId: string }[]>([])
+  const [initialViewers, setInitialViewers] = useState<ViewerRef[]>([])
+  const [viewers, setViewers] = useState<ViewerRef[]>([])
 
   const socketRef = useRef<Socket | null>(null)
   const listenersRef = useRef(new Set<(msg: ServerMessage) => void>())
@@ -34,12 +36,11 @@ export function useRoom({ roomId, role, token }: UseRoomParams) {
       joinedRef.current = false
       setStatus('connected')
       setError(null)
-      socket.emit('message', { type: 'join', roomId, role, token } satisfies ClientMessage)
+      socket.emit('message', { type: 'join', roomId, role, token, name } satisfies ClientMessage)
     })
 
     socket.on('disconnect', () => {
       if (!joinedRef.current) return
-      // transient drop; server will reject rejoin for single-use tokens
       setStatus('error')
       setError('Conexão perdida. Atualize a página ou solicite um novo link.')
     })
@@ -50,7 +51,10 @@ export function useRoom({ roomId, role, token }: UseRoomParams) {
           joinedRef.current = true
           setRoomState(msg.state)
           if (msg.settings) setSettings(msg.settings)
-          if (msg.viewers) setInitialViewers(msg.viewers)
+          if (msg.viewers) {
+            setInitialViewers(msg.viewers)
+            setViewers(msg.viewers)
+          }
           break
         case 'join-error':
           setStatus('error')
@@ -65,6 +69,12 @@ export function useRoom({ roomId, role, token }: UseRoomParams) {
         case 'room-ended':
           setEnded(true)
           break
+        case 'viewer-joined':
+          setViewers(prev => [...prev, { socketId: msg.socketId, viewerId: msg.viewerId, name: msg.name }])
+          break
+        case 'viewer-left':
+          setViewers(prev => prev.filter(v => v.socketId !== msg.socketId))
+          break
       }
       for (const fn of listenersRef.current) fn(msg)
     })
@@ -74,7 +84,7 @@ export function useRoom({ roomId, role, token }: UseRoomParams) {
       socketRef.current = null
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [roomId, role, token])
+  }, [roomId, role, token, name])
 
   const subscribe = (fn: (msg: ServerMessage) => void) => {
     listenersRef.current.add(fn)
@@ -87,5 +97,5 @@ export function useRoom({ roomId, role, token }: UseRoomParams) {
     socketRef.current?.emit('message', msg)
   }
 
-  return { status, error, roomState, settings, viewerCount, ended, initialViewers, subscribe, send }
+  return { status, error, roomState, settings, viewerCount, ended, initialViewers, viewers, subscribe, send }
 }
