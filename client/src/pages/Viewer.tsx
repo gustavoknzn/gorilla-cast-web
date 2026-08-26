@@ -39,7 +39,7 @@ export function Viewer() {
     setShowNameModal(true)
   }
 
-  const room = useRoom({ roomId, role: 'viewer', token, name: showNameModal ? undefined : viewerName })
+  const room = useRoom({ roomId, role: 'viewer', token, name: showNameModal ? undefined : viewerName, enabled: !showNameModal })
   const viewer = useViewer(room)
 
   if (!token) {
@@ -103,6 +103,7 @@ export function Viewer() {
         <Link to="/" className="logo logo-sm">
           Gorilla Cast
         </Link>
+        {room.roomName && <span className="muted small"> · Sala {room.roomName}</span>}
         {room.status === 'connecting' && <span className="muted small">conectando…</span>}
         {viewerName && (
           <button type="button" className="btn btn-sm" onClick={handleChangeName}>
