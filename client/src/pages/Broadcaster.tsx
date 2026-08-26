@@ -40,6 +40,13 @@ export function Broadcaster() {
     [broadcaster, room, constraints],
   )
 
+  const handleKickViewer = useCallback(
+    (viewerId: string) => {
+      room.send({ type: 'kick-viewer', viewerId })
+    },
+    [room],
+  )
+
   if (!token) {
     return (
       <ScreenMessage title="Acesso restrito">
@@ -81,13 +88,15 @@ export function Broadcaster() {
           settings={constraints.settings}
           localStream={broadcaster.localStream}
           live={broadcaster.live}
-          viewerCount={room.viewerCount || broadcaster.peerCount}
+          viewerCount={room.viewers.length}
+          viewers={room.viewers}
           roomState={room.roomState}
           onSettingsChange={handleSettingsChange}
           onStart={() => void broadcaster.startSharing().catch(err => alert(err.message))}
           onStop={broadcaster.stopSharing}
           onEnd={() => room.send({ type: 'end-stream' })}
           onShare={() => setShareOpen(true)}
+          onKickViewer={handleKickViewer}
         />
       )}
 

@@ -1,17 +1,23 @@
 import { VideoPlayer } from './VideoPlayer'
-import { FPS_OPTIONS, RESOLUTIONS, type RoomSettings } from '../types'
+import { FPS_OPTIONS, RESOLUTIONS, type RoomSettings, type ViewerRef } from '../types'
 
 interface BroadcasterPanelProps {
   settings: RoomSettings
   localStream: MediaStream | null
   live: boolean
   viewerCount: number
+  viewers: ViewerRef[]
   roomState: string | null
   onSettingsChange: (s: RoomSettings) => void
   onStart: () => void
   onStop: () => void
   onEnd: () => void
   onShare: () => void
+  onKickViewer: (viewerId: string) => void
+}
+
+function formatViewerId(id: string): string {
+  return id.slice(0, 8) + '…'
 }
 
 export function BroadcasterPanel({
@@ -19,12 +25,14 @@ export function BroadcasterPanel({
   localStream,
   live,
   viewerCount,
+  viewers,
   roomState,
   onSettingsChange,
   onStart,
   onStop,
   onEnd,
   onShare,
+  onKickViewer,
 }: BroadcasterPanelProps) {
   return (
     <div className="broadcaster-layout">
@@ -84,6 +92,29 @@ export function BroadcasterPanel({
           O áudio segue o que você marcar na janela de compartilhamento do navegador: aba ou janela
           captura só o som dela; tela inteira captura o áudio do sistema todo.
         </p>
+
+        {viewers.length > 0 && (
+          <section className="viewers-list">
+            <h3>Espectadores ({viewers.length})</h3>
+            <ul>
+              {viewers.map(v => (
+                <li key={v.socketId} className="viewer-item">
+                  <span className="viewer-name">
+                    {v.name ? `${v.name} (${formatViewerId(v.viewerId)})` : formatViewerId(v.viewerId)}
+                  </span>
+                  <button
+                    type="button"
+                    className="btn btn-sm btn-danger"
+                    onClick={() => onKickViewer(v.viewerId)}
+                    title="Remover espectador"
+                  >
+                    Remover
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
 
         <div className="controls-buttons">
           {!localStream ? (
