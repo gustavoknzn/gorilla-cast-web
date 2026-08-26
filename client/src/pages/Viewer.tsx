@@ -1,14 +1,45 @@
 import { Link, useParams, useSearchParams } from 'react-router-dom'
+import { useState, useEffect } from 'react'
 import { VideoPlayer } from '../components/VideoPlayer'
 import { useRoom } from '../hooks/useRoom'
 import { useViewer } from '../hooks/useWebRTC'
+
+const STORAGE_KEY = 'gorilla-cast-viewer-name'
 
 export function Viewer() {
   const { roomId = '' } = useParams()
   const [searchParams] = useSearchParams()
   const token = searchParams.get('token') ?? ''
 
-  const room = useRoom({ roomId, role: 'viewer', token })
+  const [showNameModal, setShowNameModal] = useState(true)
+  const [viewerName, setViewerName] = useState('')
+
+  useEffect(() => {
+    const saved = localStorage.getItem(STORAGE_KEY)
+    if (saved) {
+      setViewerName(saved)
+      setShowNameModal(false)
+    }
+  }, [])
+
+  const handleNameSubmit = (e: React.FormEvent) => {
+    e.preventDefault()
+    const name = viewerName.trim().slice(0, 30)
+    if (name) {
+      localStorage.setItem(STORAGE_KEY, name)
+      setShowNameModal(false)
+    }
+  }
+
+  const handleSkipName = () => {
+    setShowNameModal(false)
+  }
+
+  const handleChangeName = () => {
+    setShowNameModal(true)
+  }
+
+  const room = useRoom({ roomId, role: 'viewer', token, name: showNameModal ? undefined : viewerName })
   const viewer = useViewer(room)
 
   if (!token) {
@@ -36,6 +67,36 @@ export function Viewer() {
     )
   }
 
+  if (showNameModal) {
+    return (
+      <main className="page page-viewer">
+        <div className="modal-overlay" onClick={handleSkipName}>
+          <div className="modal" onClick={e => e.stopPropagation()}>
+            <h2>Como você quer ser identificado?</h2>
+            <form onSubmit={handleNameSubmit}>
+              <input
+                type="text"
+                value={viewerName}
+                onChange={e => setViewerName(e.target.value)}
+                placeholder="Seu nome (máx. 30 caracteres)"
+                maxLength={30}
+                autoFocus
+              />
+              <div className="modal-actions">
+                <button type="button" className="btn" onClick={handleSkipName}>
+                  Entrar sem nome
+                </button>
+                <button type="submit" className="btn btn-primary">
+                  Entrar
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </main>
+    )
+  }
+
   return (
     <main className="page page-viewer">
       <header className="page-header">
@@ -43,6 +104,11 @@ export function Viewer() {
           Gorilla Cast
         </Link>
         {room.status === 'connecting' && <span className="muted small">conectando…</span>}
+        {viewerName && (
+          <button type="button" className="btn btn-sm" onClick={handleChangeName}>
+            Alterar nome
+          </button>
+        )}
       </header>
 
       {room.status === 'connecting' ? (
