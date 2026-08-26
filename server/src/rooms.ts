@@ -16,6 +16,33 @@ const DEFAULT_SETTINGS: RoomSettings = {
 const ROOM_TTL_MS = 24 * 60 * 60 * 1000 // 24h
 export const MAX_VIEWER_TOKENS = 10
 
+const MONKEY_NAMES = [
+  'Gorila',
+  'Chimpanzé',
+  'Orangotango',
+  'Gibão',
+  'Mandrill',
+  'Babuíno',
+  'Macaco-aranha',
+  'Uacari',
+  'Sagui',
+  'Mico',
+  'Cebus',
+  'Macaco-prego',
+  'Bugio',
+  'Guariba',
+  'Sauá',
+  'Cuxiú',
+  'Macaco-da-noite',
+  'Saimiri',
+  'Titi',
+  'Macaque',
+]
+
+function randomMonkeyName(): string {
+  return MONKEY_NAMES[Math.floor(Math.random() * MONKEY_NAMES.length)]
+}
+
 interface Room {
   id: string
   ownerId: string
@@ -26,6 +53,7 @@ interface Room {
   broadcasterSocketId: string | null
   connectedViewerIds: Set<string>
   usedViewerIds: Set<string>
+  roomName: string
 }
 
 export interface CreateRoomResult {
@@ -67,6 +95,7 @@ export class RoomManager {
       broadcasterSocketId: null,
       connectedViewerIds: new Set(),
       usedViewerIds: new Set(),
+      roomName: randomMonkeyName(),
     }
     this.rooms.set(roomId, room)
 
@@ -185,6 +214,7 @@ export class RoomManager {
       settings: room.settings,
       state: room.state,
       viewers: room.connectedViewerIds.size,
+      roomName: room.roomName,
     }
   }
 }
