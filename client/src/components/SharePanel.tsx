@@ -9,9 +9,11 @@ interface SharePanelProps {
 
 export function SharePanel({ roomId, ownerToken }: SharePanelProps) {
   const [token, setToken] = useState<string | null>(null)
+  const [nextToken, setNextToken] = useState<string | null>(null)
   const [copied, setCopied] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [generating, setGenerating] = useState(true)
+  const [generatingNext, setGeneratingNext] = useState(false)
 
   useEffect(() => {
     let cancelled = false
@@ -33,30 +35,36 @@ export function SharePanel({ roomId, ownerToken }: SharePanelProps) {
 
   const activeToken = token ?? ''
   const inviteUrl = `${window.location.origin}/watch/${roomId}?token=${encodeURIComponent(activeToken)}`
-  const needsNewToken = !activeToken
 
   const copy = async () => {
+    if (generatingNext) return
     try {
       await navigator.clipboard.writeText(inviteUrl)
       setCopied(true)
       setTimeout(() => setCopied(false), 2000)
     } catch {
       setError('Não foi possível copiar — copie manualmente')
+      return
+    }
+
+    setGeneratingNext(true)
+    setError(null)
+    try {
+      const [newToken] = await mintViewerToken(roomId, ownerToken, 1)
+      setNextToken(newToken)
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'erro ao gerar próximo link')
+    } finally {
+      setGeneratingNext(false)
     }
   }
 
-  const regenerate = async () => {
-    setError(null)
-    setGenerating(true)
-    try {
-      const [newToken] = await mintViewerToken(roomId, ownerToken, 1)
-      setToken(newToken)
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'erro ao gerar link')
-    } finally {
-      setGenerating(false)
+  useEffect(() => {
+    if (nextToken) {
+      setToken(nextToken)
+      setNextToken(null)
     }
-  }
+  }, [nextToken])
 
   return (
     <section className="share-panel">
@@ -64,9 +72,7 @@ export function SharePanel({ roomId, ownerToken }: SharePanelProps) {
 
       {generating ? (
         <p className="muted small">Gerando link…</p>
-      ) : needsNewToken ? (
-        <p className="muted small">Clique em "Gerar novo link" para criar convite</p>
-      ) : (
+      ) : token ? (
         <>
           <div className="share-link-row">
             <input
@@ -75,8 +81,13 @@ export function SharePanel({ roomId, ownerToken }: SharePanelProps) {
               onFocus={e => e.currentTarget.select()}
               title="Link de convite (uso único)"
             />
-            <button type="button" className="btn btn-sm btn-primary" onClick={copy}>
-              {copied ? 'Copiado!' : 'Copiar'}
+            <button
+              type="button"
+              className="btn btn-sm btn-primary"
+              onClick={copy}
+              disabled={generatingNext}
+            >
+              {copied ? 'Copiado!' : generatingNext ? 'Preparando próximo…' : 'Copiar'}
             </button>
           </div>
           {inviteUrl.length < 600 && (
@@ -84,21 +95,13 @@ export function SharePanel({ roomId, ownerToken }: SharePanelProps) {
               <QRCodeSVG value={inviteUrl} size={140} bgColor="#0f1115" fgColor="#e6e6e6" />
             </div>
           )}
+          {generatingNext && <p className="muted small">Preparando próximo link…</p>}
         </>
+      ) : (
+        <p className="muted small">Erro ao gerar link</p>
       )}
 
       {error && <p className="error-text small">{error}</p>}
-
-      <div className="share-actions">
-        <button
-          type="button"
-          className="btn"
-          onClick={regenerate}
-          disabled={generating}
-        >
-          {generating ? 'Gerando…' : 'Gerar novo link'}
-        </button>
-      </div>
 
       <p className="muted small">Uso único · expira em 24h · máx. 10 links</p>
     </section>
