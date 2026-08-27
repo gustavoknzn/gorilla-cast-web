@@ -1,5 +1,6 @@
 import type { Server, Socket } from 'socket.io'
 import type { RoomManager } from './rooms.js'
+import { getMaxViewers } from './rooms.js'
 
 export interface JoinMessage {
   roomId: string
@@ -131,6 +132,16 @@ export function registerSignaling(io: Server, rooms: RoomManager): void {
               socket.emit('message', { type: 'join-error', reason: 'invalid or already used viewer token' } satisfies ServerToClient)
               return
             }
+            const room = rooms.get(msg.roomId)
+            if (!room || room.state === 'ended') {
+              socket.emit('message', { type: 'join-error', reason: 'room not available' } satisfies ServerToClient)
+              return
+            }
+            const maxViewers = getMaxViewers(room.settings)
+            if (room.connectedViewerIds.size >= maxViewers) {
+              socket.emit('message', { type: 'join-error', reason: `limite de ${maxViewers} espectadores para esta resolução atingido` } satisfies ServerToClient)
+              return
+            }
             rooms.addConnectedViewer(msg.roomId, result.viewerId)
             m.roomId = msg.roomId
             m.role = 'viewer'
@@ -139,13 +150,13 @@ export function registerSignaling(io: Server, rooms: RoomManager): void {
             meta.set(socket.id, m)
             joinRegistry(msg.roomId, socket.id, m)
             socket.join(roomChannel(msg.roomId))
-            const room = rooms.get(msg.roomId)
+            const room2 = rooms.get(msg.roomId)
             socket.emit('message', {
               type: 'joined',
               role: 'viewer',
               viewerId: result.viewerId,
-              state: room?.state ?? 'waiting',
-              roomName: room?.roomName,
+              state: room2?.state ?? 'waiting',
+              roomName: room2?.roomName,
             } satisfies ServerToClient)
 
             const broadcaster = rooms.getBroadcaster(msg.roomId)

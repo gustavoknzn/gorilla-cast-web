@@ -4,7 +4,7 @@ import { fileURLToPath } from 'node:url'
 import Fastify, { type FastifyRequest } from 'fastify'
 import fastifyStatic from '@fastify/static'
 import { Server as SocketIOServer } from 'socket.io'
-import { RoomManager, MAX_VIEWER_TOKENS } from './rooms.js'
+import { RoomManager, MAX_VIEWER_TOKENS, getMaxViewers } from './rooms.js'
 import { registerSignaling, endRoom } from './signaling.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
@@ -62,7 +62,12 @@ app.post<{ Params: { id: string }; Body: { count?: number } }>('/api/rooms/:id/v
   const room = rooms.get(req.params.id)
   if (!room || room.state === 'ended') return reply.code(404).send({ error: 'room not found' })
   try {
-    const count = Math.min(Math.max(Number(req.body?.count ?? 1), 1), MAX_VIEWER_TOKENS)
+    const maxViewers = getMaxViewers(room.settings)
+    const available = maxViewers - room.connectedViewerIds.size
+    if (available <= 0) {
+      return reply.code(409).send({ error: `limite de ${maxViewers} espectadores para esta resolução atingido` })
+    }
+    const count = Math.min(Math.max(Number(req.body?.count ?? 1), 1), available)
     const viewerTokens: string[] = []
     for (let i = 0; i < count; i++) viewerTokens.push(rooms.mintViewerToken(room))
     return reply.code(201).send({ viewerTokens })
