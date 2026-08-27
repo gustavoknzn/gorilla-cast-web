@@ -5,10 +5,11 @@ Aplicação web standalone de compartilhamento de tela (screen sharing) com WebR
 ## Funcionalidades
 
 - **Broadcasting**: crie uma sala e gere um link único de convite para **um** espectador
-- **Controles do broadcaster**: contador de viewers, seleção de resolução/FPS, encerrar transmissão
+- **Controles do broadcaster**: contador de viewers, seleção de resolução/FPS, **monitoramento de upload em tempo real**, encerrar transmissão
 - **Salas independentes**: qualquer pessoa que acessar `/` cria uma nova transmissão isolada
 - **P2P WebRTC** para vídeo/áudio (mesh: broadcaster → N viewers)
 - Tokens HMAC (owner/viewer), tokens de viewer de uso único com expiração de 24h
+- **Resoluções suportadas**: 480p, 720p, 1080p, 1440p (2K), 2160p (4K) — bitrate alvo calculado automaticamente (teto 12 Mbps)
 
 ## Estrutura (monorepo)
 
