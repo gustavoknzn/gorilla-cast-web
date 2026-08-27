@@ -100,6 +100,7 @@ export function Broadcaster() {
             onEnd={() => room.send({ type: 'end-stream' })}
             roomId={roomId}
             ownerToken={token}
+            viewerCount={room.viewers.length}
           />
           <div className="preview-area">
             <VideoPlayer stream={broadcaster.localStream} muted />
