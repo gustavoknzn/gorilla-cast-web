@@ -453,6 +453,10 @@ select:focus {
   margin: -8px 0 0;
 }
 
+.hint.warning {
+  color: #ffaa00;
+}
+
 .video-player:fullscreen {
   border-radius: 0;
   border: none;

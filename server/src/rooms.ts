@@ -16,6 +16,11 @@ const DEFAULT_SETTINGS: RoomSettings = {
 const ROOM_TTL_MS = 24 * 60 * 60 * 1000 // 24h
 export const MAX_VIEWER_TOKENS = 10
 
+export function getMaxViewers(settings: RoomSettings): number {
+  const w = settings.video.width
+  return w >= 2560 ? 3 : 10
+}
+
 const MONKEY_NAMES = [
   'Gorila',
   'Chimpanzé',

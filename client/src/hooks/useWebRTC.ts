@@ -47,6 +47,18 @@ export function useBroadcaster(signaling: {
     [updatePeerCount],
   )
 
+  function buildEncodings(width: number, fps: number, maxBitrate: number): RTCRtpEncodingParameters[] {
+    const isHighRes = width >= 2560
+    if (isHighRes) {
+      return [
+        { rid: 'h', scaleResolutionDownBy: 1, maxBitrate, maxFramerate: fps },
+        { rid: 'm', scaleResolutionDownBy: 2, maxBitrate: Math.round(maxBitrate * 0.5), maxFramerate: fps },
+        { rid: 'l', scaleResolutionDownBy: 4, maxBitrate: Math.round(maxBitrate * 0.25), maxFramerate: Math.max(15, Math.round(fps / 2)) },
+      ]
+    }
+    return [{ rid: 'h', maxBitrate, maxFramerate: fps }]
+  }
+
   const createOfferTo = useCallback(async (viewerSocketId: string) => {
     const stream = streamRef.current
     if (!stream) return
@@ -57,6 +69,21 @@ export function useBroadcaster(signaling: {
 
     for (const track of stream.getTracks()) {
       pc.addTrack(track, stream)
+    }
+
+    const settings = settingsRef.current
+    if (settings?.video) {
+      const maxBitrate = estimateBitrate(settings.video.width, settings.video.height, settings.video.frameRate)
+      for (const sender of pc.getSenders()) {
+        if (sender.track?.kind !== 'video') continue
+        const params = sender.getParameters()
+        params.encodings = buildEncodings(settings.video.width, settings.video.frameRate, maxBitrate)
+        try {
+          await sender.setParameters(params)
+        } catch {
+          // simulcast not supported, fall back to single encoding
+        }
+      }
     }
 
     pc.onicecandidate = e => {
@@ -159,13 +186,13 @@ export function useBroadcaster(signaling: {
       } else {
         return 'restarted'
       }
-      // adjust live bitrate on all senders
+      // adjust live bitrate on all senders (simulcast encodings)
       const maxBitrate = estimateBitrate(settings.video.width, settings.video.height, settings.video.frameRate)
       for (const pc of peersRef.current.values()) {
         for (const sender of pc.getSenders()) {
           if (sender.track?.kind !== 'video') continue
           const params = sender.getParameters()
-          params.encodings = [{ ...(params.encodings[0] ?? {}), maxBitrate }]
+params.encodings = buildEncodings(settings.video.width, settings.video.frameRate, maxBitrate)
           try {
             await sender.setParameters(params)
           } catch {

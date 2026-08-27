@@ -11,6 +11,11 @@ interface BroadcasterPanelProps {
   onEnd: () => void
   roomId: string
   ownerToken: string
+  viewerCount?: number
+}
+
+function getMaxViewers(width: number): number {
+  return width >= 2560 ? 3 : 10
 }
 
 export function BroadcasterPanel({
@@ -23,7 +28,12 @@ export function BroadcasterPanel({
   onEnd,
   roomId,
   ownerToken,
+  viewerCount = 0,
 }: BroadcasterPanelProps) {
+  const maxViewers = getMaxViewers(settings.video.width)
+  const isHighRes = settings.video.width >= 2560
+  const atLimit = viewerCount >= maxViewers
+
   return (
     <aside className="controls">
       <h2>Controles</h2>
@@ -38,12 +48,24 @@ export function BroadcasterPanel({
           }}
         >
           {RESOLUTIONS.map(r => (
-            <option key={r.label} value={`${r.width}x${r.height}`}>
-              {r.label} ({r.width}×{r.height})
+            <option
+              key={r.label}
+              value={`${r.width}x${r.height}`}
+              disabled={r.width >= 2560 && atLimit && settings.video.width < 2560}
+            >
+              {r.label} ({r.width}×{r.height}){r.width >= 2560 ? ' · máx. 3 viewers' : ''}
             </option>
           ))}
         </select>
       </label>
+
+      {isHighRes && (
+        <p className={`hint ${atLimit ? 'warning' : ''}`}>
+          {atLimit
+            ? `⚠ Limite de ${maxViewers} espectadores atingido. Reduza a resolução para permitir mais.`
+            : `Resolução alta: máx. ${maxViewers} espectadores simultâneos ({viewerCount}/${maxViewers})`}
+        </p>
+      )}
 
       <label className="field">
         FPS
