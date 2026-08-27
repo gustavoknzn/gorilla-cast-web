@@ -303,6 +303,11 @@ select:focus {
   color: var(--text-muted);
 }
 
+.badge-upload {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
 .controls {
   background: var(--bg-elev);
   border: 1px solid var(--border);

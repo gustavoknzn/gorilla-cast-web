@@ -15,6 +15,7 @@ export function Broadcaster() {
 
   const room = useRoom({ roomId, role: 'broadcaster', token })
   const broadcaster = useBroadcaster(room)
+  const { uploadBitrate } = broadcaster
   const [shareOpen, setShareOpen] = useState(false)
 
   const constraints = useMediaConstraints(
@@ -108,6 +109,7 @@ export function Broadcaster() {
                 {broadcaster.live ? '● AO VIVO' : 'aguardando'}
               </span>
               {broadcaster.live && <span className="badge">{room.viewers.length} {room.viewers.length === 1 ? 'espectador' : 'espectadores'}</span>}
+              {broadcaster.live && uploadBitrate > 0 && <span className="badge badge-upload">↑ {uploadBitrate} Mbps</span>}
             </div>
           </div>
           <ViewerList viewers={room.viewers} onKickViewer={handleKickViewer} />
