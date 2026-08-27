@@ -140,8 +140,9 @@ export class RoomManager {
     if (payload.exp < Date.now()) return null
     const room = this.rooms.get(roomId)
     if (!room || room.state === 'ended') return null
-    if (room.usedViewerIds.has(payload.viewerId)) return null // single-use
-    room.usedViewerIds.add(payload.viewerId)
+    if (!room.usedViewerIds.has(payload.viewerId)) {
+      room.usedViewerIds.add(payload.viewerId)
+    }
     return { viewerId: payload.viewerId }
   }
 

@@ -183,22 +183,28 @@ describe('signaling', () => {
     assert.deepEqual(counts.map((c) => c.count), [1])
   })
 
-  it('a consumed viewer token cannot join again', () => {
+  it('a consumed viewer token can rejoin (reconnection), but second connection gets same viewerId', () => {
     const { rooms, io } = setup()
     const { roomId, socket: b1 } = joinBroadcaster(io, rooms)
     const viewerToken = rooms.mintViewerToken(roomId)
 
     const v1 = io.connect('v1')
     v1.send({ type: 'join', roomId, role: 'viewer', token: viewerToken })
-    assert.equal(v1.lastMessage()?.type, 'joined')
+    const firstJoin = v1.lastMessage()
+    assert.equal(firstJoin?.type, 'joined')
+    if (firstJoin?.type !== 'joined') return
+    const viewerId = firstJoin.viewerId
 
     const countsBefore = b1.messagesOfType('viewer-count').length
+    // same token again -> reconnection allowed, same viewerId
     const v2 = io.connect('v2')
     v2.send({ type: 'join', roomId, role: 'viewer', token: viewerToken })
-    const rejected = v2.lastMessage()
-    assert.equal(rejected?.type, 'join-error')
-    if (rejected?.type === 'join-error') assert.match(rejected.reason, /already used/)
-    assert.equal(b1.messagesOfType('viewer-count').length, countsBefore)
+    const secondJoin = v2.lastMessage()
+    assert.equal(secondJoin?.type, 'joined')
+    if (secondJoin?.type !== 'joined') return
+    assert.equal(secondJoin.viewerId, viewerId)
+    // viewer count should increment (new socket connection)
+    assert.equal(b1.messagesOfType('viewer-count').length, countsBefore + 1)
   })
 
   it('relays offer/answer/candidate only between sockets in the same room', () => {
