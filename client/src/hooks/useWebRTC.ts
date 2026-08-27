@@ -16,6 +16,7 @@ export function useBroadcaster(signaling: {
   const [localStream, setLocalStream] = useState<MediaStream | null>(null)
   const [live, setLive] = useState(false)
   const [peerCount, setPeerCount] = useState(0)
+  const [uploadBitrate, setUploadBitrate] = useState(0)
 
   const streamRef = useRef<MediaStream | null>(null)
   const peersRef = useRef(new Map<string, RTCPeerConnection>())
@@ -220,9 +221,43 @@ export function useBroadcaster(signaling: {
     return unsubscribe
   }, [signaling, createOfferTo, closePeer, stopSharing])
 
+  useEffect(() => {
+    let lastBytes = 0
+    let lastTime = performance.now()
+
+    const interval = setInterval(async () => {
+      if (!live || peersRef.current.size === 0) return
+
+      let totalBytes = 0
+      for (const pc of peersRef.current.values()) {
+        try {
+          const stats = await pc.getStats()
+          stats.forEach(report => {
+            if (report.type === 'outbound-rtp' && report.kind === 'video') {
+              totalBytes += report.bytesSent ?? 0
+            }
+          })
+        } catch {
+          // ignore stats errors
+        }
+      }
+
+      const now = performance.now()
+      const deltaSec = (now - lastTime) / 1000
+      if (deltaSec > 0) {
+        const mbps = ((totalBytes - lastBytes) * 8) / 1_000_000 / deltaSec
+        setUploadBitrate(Math.round(mbps * 10) / 10)
+      }
+      lastBytes = totalBytes
+      lastTime = now
+    }, 2000)
+
+    return () => clearInterval(interval)
+  }, [live])
+
   useEffect(() => () => stopSharing(), [stopSharing])
 
-  return { localStream, live, peerCount, startSharing, stopSharing, applyConstraints }
+  return { localStream, live, peerCount, uploadBitrate, startSharing, stopSharing, applyConstraints }
 }
 
 // ---------- Viewer ----------
