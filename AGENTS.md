@@ -75,6 +75,7 @@ Routes: `/` (landing), `/b/:roomId` (broadcaster), `/watch/:roomId` (viewer).
 - **STUN only, no TURN** — public Google/Twilio STUN servers in
   `client/src/types.ts`; connections behind restrictive NATs may fail.
   Accepted trade-off to avoid TURN bandwidth costs.
+- **Resoluções 2K/4K + monitoramento de upload** — `RESOLUTIONS` em `client/src/types.ts` inclui 1440p (2K) e 2160p (4K); bitrate alvo calculado por `estimateBitrate()` (0.12 bits/pixel, teto 12 Mbps). Upload real exibido via `RTCPeerConnection.getStats()` polling (2s) no badge do preview.
 - **Broadcaster grace window** — abrupt broadcaster disconnect schedules
   room teardown after `BROADCASTER_GRACE_MS` (default 30s) so reloads and
   network blips don't invalidate viewer links.
