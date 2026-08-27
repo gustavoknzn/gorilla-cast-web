@@ -41,13 +41,17 @@ describe('RoomManager', () => {
     assert.equal(rooms.verifyOwner(a.roomId, 'garbage'), null)
   })
 
-  it('viewer tokens are single-use and room-scoped', () => {
+  it('viewer tokens allow reconnection of same viewerId, prevent cross-room reuse', () => {
     const rooms = new RoomManager(SECRET)
     const a = rooms.create()
     const b = rooms.create()
     const first = rooms.consumeViewerToken(a.roomId, a.viewerTokens[0])
     assert.ok(first?.viewerId)
-    assert.equal(rooms.consumeViewerToken(a.roomId, a.viewerTokens[0]), null)
+    // same token again -> allowed (reconnection), returns same viewerId
+    const second = rooms.consumeViewerToken(a.roomId, a.viewerTokens[0])
+    assert.ok(second?.viewerId)
+    assert.equal(second.viewerId, first.viewerId)
+    // cross-room reuse -> rejected
     assert.equal(rooms.consumeViewerToken(b.roomId, a.viewerTokens[0]), null)
     assert.ok(rooms.consumeViewerToken(b.roomId, b.viewerTokens[0]))
   })
